@@ -42,10 +42,10 @@ public class AdminDtos {
 
     public record CreateAdminPostRequest(
         @NotBlank String content,
-        boolean notifyAll
+        boolean notifyEveryone
     ) {
         public String getContent() { return content; }
-        public boolean isNotifyAll() { return notifyAll; }
+        public boolean isNotifyAll() { return notifyEveryone; }
     }
 
     public record LiveStats(
