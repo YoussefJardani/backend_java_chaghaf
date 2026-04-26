@@ -57,6 +57,8 @@ public class SecurityConfig {
                     "/api/catalog/**",
                     "/api/reservations/salles",
                     "/api/subscriptions/packs",
+                    "/api/debug",
+                    "/api/debug/**",
                     "/actuator/**"
                 ).permitAll()
                 .anyRequest().authenticated()
