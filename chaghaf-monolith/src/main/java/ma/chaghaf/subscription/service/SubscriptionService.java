@@ -1,6 +1,8 @@
 package ma.chaghaf.subscription.service;
 
 import lombok.RequiredArgsConstructor;
+import ma.chaghaf.notification.entity.Notification;
+import ma.chaghaf.notification.repository.NotificationRepository;
 import ma.chaghaf.subscription.dto.SubscriptionDtos.*;
 import ma.chaghaf.subscription.entity.DayAccess;
 import ma.chaghaf.subscription.entity.Subscription;
@@ -22,6 +24,7 @@ public class SubscriptionService {
 
     private final SubscriptionRepository repo;
     private final DayAccessRepository dayAccessRepo;
+    private final NotificationRepository notifRepo;
 
     public SubscriptionResponse getActiveForUser(Long userId) {
         return repo.findByUserIdAndStatus(userId, Subscription.Status.ACTIVE)
@@ -66,11 +69,11 @@ public class SubscriptionService {
 
         Subscription.Duration duration = parseDuration(durationStr);
 
-        // Désactiver l'abonnement actif courant si présent
-        repo.findByUserIdAndStatus(userId, Subscription.Status.ACTIVE).ifPresent(old -> {
-            old.setStatus(Subscription.Status.EXPIRED);
-            repo.save(old);
-        });
+        // Empêcher la souscription si déjà actif → on demande de passer par l'admin
+        if (repo.findByUserIdAndStatus(userId, Subscription.Status.ACTIVE).isPresent()) {
+            throw new IllegalArgumentException(
+                "Vous avez déjà un abonnement actif. Pour le modifier, veuillez contacter l'administrateur.");
+        }
 
         LocalDate start = LocalDate.now();
         LocalDate end = computeEndDate(start, duration);
@@ -85,7 +88,17 @@ public class SubscriptionService {
             .price(price)
             .status(Subscription.Status.ACTIVE)
             .build();
-        return toDto(repo.save(s));
+        s = repo.save(s);
+
+        notifRepo.save(Notification.builder()
+            .userId(userId)
+            .title("Abonnement activé")
+            .body("Pack " + packType.name() + " · " + duration.name() + " · " + price + " dh")
+            .type("SUBSCRIPTION")
+            .read(false)
+            .build());
+
+        return toDto(s);
     }
 
     @Transactional
@@ -97,7 +110,17 @@ public class SubscriptionService {
         LocalDate end = computeEndDate(start, current.getDuration());
         current.setStartDate(start);
         current.setEndDate(end);
-        return toDto(repo.save(current));
+        Subscription saved = repo.save(current);
+
+        notifRepo.save(Notification.builder()
+            .userId(userId)
+            .title("Abonnement renouvelé")
+            .body("Valide jusqu'au " + end)
+            .type("SUBSCRIPTION")
+            .read(false)
+            .build());
+
+        return toDto(saved);
     }
 
     @Transactional
@@ -117,6 +140,14 @@ public class SubscriptionService {
             .used(false)
             .build();
         da = dayAccessRepo.save(da);
+
+        notifRepo.save(Notification.builder()
+            .userId(userId)
+            .title("Accès journée acheté")
+            .body("Code: " + da.getQrToken().substring(0, 8) + " · " + priceForAccess(accessType) + " dh")
+            .type("DAY_ACCESS")
+            .read(false)
+            .build());
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", da.getId());

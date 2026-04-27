@@ -1,6 +1,8 @@
 package ma.chaghaf.reservation.service;
 
 import lombok.RequiredArgsConstructor;
+import ma.chaghaf.notification.entity.Notification;
+import ma.chaghaf.notification.repository.NotificationRepository;
 import ma.chaghaf.reservation.dto.ReservationDtos.*;
 import ma.chaghaf.reservation.entity.Reservation;
 import ma.chaghaf.reservation.repository.ReservationRepository;
@@ -17,6 +19,7 @@ import java.util.Map;
 public class ReservationService {
 
     private final ReservationRepository repo;
+    private final NotificationRepository notifRepo;
 
     public List<ReservationResponse> findByUser(Long userId) {
         return repo.findByUserId(userId).stream().map(this::toDto).toList();
@@ -24,9 +27,18 @@ public class ReservationService {
 
     public List<SalleInfo> listSalles() {
         return List.of(
-            new SalleInfo("s1", "Salle de Réunion", "🏛️", "1–8 personnes", new BigDecimal("100.00")),
-            new SalleInfo("s2", "Salle Photo", "📸", "1–3 personnes", new BigDecimal("80.00")),
-            new SalleInfo("s3", "Studio Podcast", "🎙️", "1–4 personnes", new BigDecimal("120.00"))
+            new SalleInfo("s1", "Salle de Réunion", "🏛️", "business-outline",
+                "1–8 personnes", new BigDecimal("100.00"),
+                new BigDecimal("400.00"), new BigDecimal("700.00"),
+                List.of("Wifi", "Écran TV", "Tableau blanc", "Climatisation")),
+            new SalleInfo("s2", "Salle Photo", "📸", "camera-outline",
+                "1–3 personnes", new BigDecimal("80.00"),
+                new BigDecimal("320.00"), new BigDecimal("560.00"),
+                List.of("Studio photo", "Éclairage pro", "Fond blanc")),
+            new SalleInfo("s3", "Studio Podcast", "🎙️", "mic-outline",
+                "1–4 personnes", new BigDecimal("120.00"),
+                new BigDecimal("480.00"), new BigDecimal("840.00"),
+                List.of("Microphones", "Insonorisation", "Mixeur audio"))
         );
     }
 
@@ -57,8 +69,8 @@ public class ReservationService {
         BigDecimal price = switch (duration) {
             case ONE_HOUR  -> salle.pricePerHour();
             case TWO_HOURS -> salle.pricePerHour().multiply(BigDecimal.valueOf(2));
-            case HALF_DAY  -> salle.pricePerHour().multiply(BigDecimal.valueOf(4));
-            case FULL_DAY  -> salle.pricePerHour().multiply(BigDecimal.valueOf(8));
+            case HALF_DAY  -> salle.halfDayPrice();
+            case FULL_DAY  -> salle.fullDayPrice();
         };
 
         Reservation r = Reservation.builder()
@@ -70,7 +82,17 @@ public class ReservationService {
             .price(price)
             .status(Reservation.Status.CONFIRMED)
             .build();
-        return toDto(repo.save(r));
+        r = repo.save(r);
+
+        notifRepo.save(Notification.builder()
+            .userId(userId)
+            .title("Réservation confirmée")
+            .body(salle.name() + " · " + dateStr + " · " + price + " dh")
+            .type("RESERVATION")
+            .read(false)
+            .build());
+
+        return toDto(r);
     }
 
     @Transactional
@@ -82,6 +104,14 @@ public class ReservationService {
         }
         r.setStatus(Reservation.Status.CANCELLED);
         repo.save(r);
+
+        notifRepo.save(Notification.builder()
+            .userId(userId)
+            .title("Réservation annulée")
+            .body(r.getSalleName() + " · " + r.getReservationDate())
+            .type("RESERVATION")
+            .read(false)
+            .build());
     }
 
     private ReservationResponse toDto(Reservation r) {
