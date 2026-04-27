@@ -42,6 +42,18 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("status", "UP", "service", "auth"));
     }
 
+    @PutMapping("/fcm-token")
+    public ResponseEntity<Map<String, String>> updateFcmToken(HttpServletRequest req,
+                                                                @RequestBody Map<String, String> body) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        if (userId == null) throw new IllegalArgumentException("Utilisateur non authentifié");
+        User u = userRepo.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        u.setFcmToken(body.get("fcmToken"));
+        userRepo.save(u);
+        return ResponseEntity.ok(Map.of("message", "FCM token updated"));
+    }
+
     // ─── New: list all users (admin-style listing) ──────────────────
     @GetMapping("/users")
     public ResponseEntity<List<UserResponse>> listAll() {

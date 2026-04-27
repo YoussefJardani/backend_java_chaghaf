@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -29,9 +30,15 @@ public class SocialController {
     public ResponseEntity<PostResponse> create(HttpServletRequest req,
                                                 @Valid @RequestBody CreatePostRequest body) {
         Long userId = (Long) req.getAttribute("X-User-Id");
+        if (userId == null) throw new IllegalArgumentException("Utilisateur non authentifié");
         User u = userRepo.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return ResponseEntity.ok(service.createPost(
             userId, u.getFullName(), u.getAvatarLetter(), u.getRole().name(), body));
+    }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<Map<String, Object>> toggleLike(@PathVariable Long id) {
+        return ResponseEntity.ok(service.toggleLike(id));
     }
 }

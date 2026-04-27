@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/subscriptions")
@@ -26,5 +27,31 @@ public class SubscriptionController {
     @GetMapping("/packs")
     public ResponseEntity<List<PackInfo>> packs() {
         return ResponseEntity.ok(service.listPacks());
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<SubscriptionResponse>> history(HttpServletRequest req) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        return ResponseEntity.ok(service.getHistory(userId));
+    }
+
+    @PostMapping
+    public ResponseEntity<SubscriptionResponse> subscribe(HttpServletRequest req,
+                                                           @RequestBody Map<String, Object> body) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        return ResponseEntity.ok(service.subscribe(userId, body));
+    }
+
+    @PostMapping("/renew")
+    public ResponseEntity<SubscriptionResponse> renew(HttpServletRequest req) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        return ResponseEntity.ok(service.renew(userId));
+    }
+
+    @PostMapping("/day-access")
+    public ResponseEntity<Map<String, Object>> dayAccess(HttpServletRequest req,
+                                                          @RequestBody Map<String, Object> body) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        return ResponseEntity.ok(service.purchaseDayAccess(userId, body));
     }
 }
