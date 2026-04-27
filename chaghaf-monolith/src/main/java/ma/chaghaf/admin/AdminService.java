@@ -144,9 +144,44 @@ public class AdminService {
     }
 
     private QrValidationResult resolveUserFromToken(String token) {
+        // 1) Format JSON du mobile : {"type":"CHAGHAF_USER","userId":1,...}
         try {
-            String[] parts = token.split("-");
-            for (String p : parts) {
+            String trimmed = token.trim();
+            if (trimmed.startsWith("{") && trimmed.contains("userId")) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("\"userId\"\\s*:\\s*(\\d+)").matcher(trimmed);
+                if (m.find()) {
+                    long uid = Long.parseLong(m.group(1));
+                    Optional<User> ou = userRepo.findById(uid);
+                    if (ou.isPresent()) {
+                        User u = ou.get();
+                        return new QrValidationResult(true, token, u.getId(),
+                            u.getFullName(), u.getEmail(), u.getAvatarLetter(),
+                            "MEMBER", LocalDate.now(), false,
+                            "✅ Membre identifié : " + u.getFullName(),
+                            LocalDateTime.now());
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // 2) Format ID brut : "12" → user 12
+        try {
+            long uid = Long.parseLong(token.trim());
+            Optional<User> ou = userRepo.findById(uid);
+            if (ou.isPresent()) {
+                User u = ou.get();
+                return new QrValidationResult(true, token, u.getId(),
+                    u.getFullName(), u.getEmail(), u.getAvatarLetter(),
+                    "MEMBER", LocalDate.now(), false,
+                    "✅ Membre identifié : " + u.getFullName(),
+                    LocalDateTime.now());
+            }
+        } catch (NumberFormatException ignored) {}
+
+        // 3) Legacy : token avec parties séparées par "-"
+        try {
+            for (String p : token.split("-")) {
                 try {
                     long uid = Long.parseLong(p);
                     Optional<User> ou = userRepo.findById(uid);

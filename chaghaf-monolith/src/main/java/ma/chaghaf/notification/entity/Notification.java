@@ -30,8 +30,8 @@ public class Notification {
     @Column(length = 500)
     private String link;
 
-    // "read" est un mot-clé dans certaines bases — on force le nom de colonne
-    @Column(name = "is_read", nullable = false)
+    // Garder le nom "read" qui correspond à la colonne DB existante
+    @Column(nullable = false)
     @Builder.Default
     private Boolean read = false;
 
