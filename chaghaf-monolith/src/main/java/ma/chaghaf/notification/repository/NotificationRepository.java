@@ -11,11 +11,13 @@ import java.util.List;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
+
     List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
 
-    long countByUserIdAndReadFalse(Long userId);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.userId = :userId AND (n.read = false OR n.read IS NULL)")
+    long countByUserIdAndReadFalse(@Param("userId") Long userId);
 
     @Modifying
-    @Query("UPDATE Notification n SET n.read = true WHERE n.userId = :userId AND n.read = false")
+    @Query("UPDATE Notification n SET n.read = true WHERE n.userId = :userId AND (n.read = false OR n.read IS NULL)")
     void markAllReadForUser(@Param("userId") Long userId);
 }
