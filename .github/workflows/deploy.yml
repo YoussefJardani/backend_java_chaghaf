@@ -40,9 +40,10 @@ jobs:
           echo "HTTP $http_code"
           echo "$body"
 
-          if [ "$http_code" != "201" ] && [ "$http_code" != "200" ]; then
+          # Render renvoie 201 (created) ou 202 (accepted) en cas de succès
+          if [ "$http_code" != "200" ] && [ "$http_code" != "201" ] && [ "$http_code" != "202" ]; then
             echo "::error::Échec du déploiement Render (HTTP $http_code)"
             exit 1
           fi
 
-          echo "✅ Déploiement Render déclenché avec succès"
+          echo "✅ Déploiement Render déclenché avec succès (HTTP $http_code)"
