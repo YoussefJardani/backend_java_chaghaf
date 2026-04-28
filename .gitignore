@@ -1,0 +1,26 @@
+# Build outputs
+target/
+*.class
+*.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — JAMAIS committer
+infra/.env.azure
+infra/azure-credentials.json
+infra/*.secret
+*.env.local
+*.env.azure
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
