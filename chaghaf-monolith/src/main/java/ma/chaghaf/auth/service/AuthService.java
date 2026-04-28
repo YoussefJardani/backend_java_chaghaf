@@ -14,6 +14,7 @@ public class AuthService {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginRateLimiter rateLimiter;
 
     public AuthResponse register(RegisterRequest req) {
         if (userRepo.existsByEmail(req.email())) {
@@ -33,14 +34,20 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
-        User u = userRepo.findByEmail(req.email())
-            .orElseThrow(() -> new IllegalArgumentException("Email ou mot de passe incorrect"));
-        if (!passwordEncoder.matches(req.password(), u.getPassword())) {
+        // Anti-bruteforce : refuse si trop d'échecs récents pour cet email
+        rateLimiter.check(req.email());
+
+        User u = userRepo.findByEmail(req.email()).orElse(null);
+        if (u == null || !passwordEncoder.matches(req.password(), u.getPassword())) {
+            rateLimiter.recordFailure(req.email());
             throw new IllegalArgumentException("Email ou mot de passe incorrect");
         }
         if (!Boolean.TRUE.equals(u.getActive())) {
+            rateLimiter.recordFailure(req.email());
             throw new IllegalArgumentException("Compte désactivé");
         }
+
+        rateLimiter.recordSuccess(req.email());
         String token = jwtService.generateToken(u.getId(), u.getEmail(), u.getRole().name());
         return new AuthResponse(token, u.getId(), u.getFullName(), u.getEmail(), u.getRole().name());
     }
