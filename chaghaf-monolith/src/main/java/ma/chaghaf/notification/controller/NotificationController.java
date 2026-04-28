@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -20,5 +21,18 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponse>> myNotifications(HttpServletRequest req) {
         Long userId = (Long) req.getAttribute("X-User-Id");
         return ResponseEntity.ok(service.findByUser(userId));
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<Map<String, Long>> unreadCount(HttpServletRequest req) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        return ResponseEntity.ok(Map.of("count", service.countUnread(userId)));
+    }
+
+    @PostMapping("/mark-read")
+    public ResponseEntity<Map<String, Object>> markAllRead(HttpServletRequest req) {
+        Long userId = (Long) req.getAttribute("X-User-Id");
+        service.markAllRead(userId);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 }

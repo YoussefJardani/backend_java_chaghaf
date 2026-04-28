@@ -10,26 +10,25 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * Supprime automatiquement les notifications de plus de 30 jours.
- * Empêche l'accumulation infinie de la table.
- * S'exécute tous les jours à 3h du matin.
+ * Supprime les notifications de plus de 2 jours.
+ * Tourne toutes les heures pour rester réactif (notifications expirent vite côté UX).
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationCleanupJob {
 
+    private static final int RETENTION_DAYS = 2;
+
     private final NotificationRepository repo;
 
-    @Scheduled(cron = "0 0 3 * * *")  // tous les jours à 03:00
+    @Scheduled(cron = "0 0 * * * *")  // toutes les heures, à la minute 0
     @Transactional
     public void cleanupOldNotifications() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(RETENTION_DAYS);
         int deleted = repo.deleteOlderThan(cutoff);
         if (deleted > 0) {
             log.info("Notifications cleanup: {} rows deleted (older than {})", deleted, cutoff);
-        } else {
-            log.debug("Notifications cleanup: nothing to delete");
         }
     }
 }

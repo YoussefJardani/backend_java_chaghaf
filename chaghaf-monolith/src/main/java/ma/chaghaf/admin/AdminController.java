@@ -1,14 +1,22 @@
 package ma.chaghaf.admin;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.chaghaf.admin.dto.AdminDtos.*;
+import ma.chaghaf.catalog.entity.SnackOrder;
+import ma.chaghaf.catalog.repository.SnackOrderRepository;
 import ma.chaghaf.config.SseEmitterManager;
+import ma.chaghaf.notification.dto.NotificationDtos.SendNotificationRequest;
+import ma.chaghaf.notification.service.NotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +27,9 @@ public class AdminController {
 
     private final AdminService service;
     private final SseEmitterManager sse;
+    private final SnackOrderRepository snackOrderRepo;
+    private final NotificationService notifications;
+    private final ObjectMapper json = new ObjectMapper();
 
     @GetMapping(value = "/stream", produces = "text/event-stream")
     public SseEmitter stream() { return sse.subscribe(); }
@@ -114,5 +125,58 @@ public class AdminController {
             } catch (Exception ignored) {}
         });
         return ResponseEntity.ok(Map.of("message", "Broadcast envoyé"));
+    }
+
+    // ── Snack orders (vue ERP) ────────────────────────────────────
+    @GetMapping("/snack-orders")
+    public ResponseEntity<List<Map<String, Object>>> snackOrders(
+            @RequestParam(required = false) String status) {
+        List<SnackOrder> orders = (status == null || status.isBlank())
+            ? snackOrderRepo.findAllByOrderByCreatedAtDesc()
+            : snackOrderRepo.findByStatusOrderByCreatedAtDesc(status);
+        List<Map<String, Object>> out = orders.stream().map(this::snackOrderToDto).toList();
+        return ResponseEntity.ok(out);
+    }
+
+    @PatchMapping("/snack-orders/{id}/status")
+    public ResponseEntity<Map<String, Object>> updateSnackOrderStatus(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        return snackOrderRepo.findById(id)
+            .map(o -> {
+                String newStatus = body.getOrDefault("status", "PENDING");
+                o.setStatus(newStatus);
+                o.setUpdatedAt(LocalDateTime.now());
+                snackOrderRepo.save(o);
+                try {
+                    notifications.send(new SendNotificationRequest(
+                        o.getUserId(),
+                        "Mise à jour commande snacks",
+                        "Votre commande #" + o.getId() + " est maintenant : " + newStatus,
+                        "SNACK_ORDER",
+                        "/snacks/orders/" + o.getId()));
+                } catch (Exception ignored) {}
+                sse.broadcast("snack-order-updated", Map.of("id", o.getId(), "status", newStatus));
+                return ResponseEntity.ok(snackOrderToDto(o));
+            })
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private Map<String, Object> snackOrderToDto(SnackOrder o) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", o.getId());
+        m.put("userId", o.getUserId());
+        try {
+            m.put("items", json.readValue(
+                o.getItemsJson() == null ? "[]" : o.getItemsJson(),
+                new TypeReference<List<Map<String, Object>>>(){}));
+        } catch (Exception e) {
+            m.put("items", List.of());
+        }
+        m.put("note", o.getNote() == null ? "" : o.getNote());
+        m.put("totalPrice", o.getTotalPrice());
+        m.put("status", o.getStatus());
+        m.put("createdAt", o.getCreatedAt() != null ? o.getCreatedAt().toString() : null);
+        m.put("updatedAt", o.getUpdatedAt() != null ? o.getUpdatedAt().toString() : null);
+        return m;
     }
 }

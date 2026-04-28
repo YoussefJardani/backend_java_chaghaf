@@ -42,6 +42,21 @@ spring:
     async:
       request-timeout: -1
 
+  # ── RabbitMQ (optionnel, activé via chaghaf.rabbitmq.enabled=true) ──
+  rabbitmq:
+    host:     ${RABBITMQ_HOST:localhost}
+    port:     ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_ENABLED:false}
+
+# Bus notifications via AMQP. Mettre à true en prod si broker disponible.
+chaghaf:
+  rabbitmq:
+    enabled: ${RABBITMQ_ENABLED:false}
+
 jwt:
   # PAS de fallback : JWT_SECRET DOIT être défini en env var.
   # JwtService crash au démarrage si manquant ou < 32 bytes.
