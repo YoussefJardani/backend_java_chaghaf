@@ -18,6 +18,9 @@ env:
   IMAGE_NAME:      chaghaf-monolith
   DOCKERFILE_PATH: chaghaf-monolith/Dockerfile
   BUILD_CONTEXT:   chaghaf-monolith
+  # Force les actions JS encore en Node 20 à tourner en Node 24
+  # (cf. deprecation GitHub Actions du 2025-09-19)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:

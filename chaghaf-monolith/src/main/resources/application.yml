@@ -79,6 +79,8 @@ management:
   health:
     db:
       enabled: true
+    # Le health check RabbitMQ ne doit être actif que si le broker est branché
+    # (sinon /actuator/health passe DOWN et casse les health probes Azure).
     rabbit:
       enabled: ${RABBITMQ_ENABLED:false}
 
